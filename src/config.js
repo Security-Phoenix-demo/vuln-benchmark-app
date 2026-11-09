@@ -1,5 +1,3 @@
-// Loads (or creates) the runtime secrets. They are random per deploy,
-// so an attacker must discover them (A4, A7, A8) instead of guessing.
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');

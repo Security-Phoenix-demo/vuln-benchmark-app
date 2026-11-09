@@ -4,8 +4,7 @@
   "description": "DELIBERATELY VULNERABLE benchmark app for DAST and Hunt. Lab use only.",
   "main": "src/server.js",
   "scripts": {
-    "start": "node src/server.js",
-    "verify": "node scripts/verify.js"
+    "start": "node src/server.js"
   },
   "engines": { "node": ">=22.13" },
   "dependencies": {

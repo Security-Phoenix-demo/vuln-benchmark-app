@@ -2,7 +2,7 @@ const { DatabaseSync } = require('node:sqlite');
 const crypto = require('crypto');
 
 const db = new DatabaseSync(':memory:');
-const md5 = (s) => crypto.createHash('md5').update(s).digest('hex'); // weak hash (used by C9 data)
+const md5 = (s) => crypto.createHash('md5').update(s).digest('hex');
 
 db.exec(`
   CREATE TABLE users(id INTEGER PRIMARY KEY, username TEXT, password TEXT, role TEXT);
@@ -18,7 +18,6 @@ const addProduct = db.prepare('INSERT INTO products(name,price) VALUES(?,?)');
 
 const audit = (msg) => db.prepare('INSERT INTO audit(msg) VALUES(?)').run(msg);
 
-// B7 (CWE-89): SQL injection, but nothing in the app calls legacySearch().
 function legacySearch(term) {
   return db.prepare(`SELECT * FROM products WHERE name = '${term}'`).all();
 }
