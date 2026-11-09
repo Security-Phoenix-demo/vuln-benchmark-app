@@ -16,12 +16,22 @@ A small Node.js shop API with 30 planted flaws. It scores DAST and Hunt against 
 - Score a result: `python3 scripts/score.py findings.json --tool dast|hunt`.
 - Run: `npm start` (port 8080). Internal service: `127.0.0.1:9091`, reachable only through SSRF.
 
-## Chains (how C hangs off A)
+## Chains (each C has a designated A parent)
 
-- Admin routes `/api/admin/*` (C1-C7, C10) need an admin token. Get it with A1 (`admin'--`), A10 (alg none), or forge it with the secret from A4 or A7.
-- C4 needs A9 first: upload `plugin.js`, then load it.
-- C5 needs A1 first: log in with an HTML username, then the admin opens `/api/admin/audit`.
-- C8 and C9 need A5 (SSRF) plus the internal key from A8, A7 or A4.
+| C flaw | Reached through | How |
+|---|---|---|
+| C1 export SQLi | A10 | forge a token with `alg none` |
+| C2 log traversal | A3 | command injection `cat` the secrets file, forge an HS256 admin token |
+| C3 template injection | A4 | path traversal reads the secrets file, forge an admin token |
+| C4 plugin RCE | A9 + A1 | upload `plugin.js`, SQLi login gives the admin token, load it |
+| C5 stored XSS | A1 | a failed login with an HTML username lands in the audit log |
+| C6 file write | A7 | debug env returns the JWT secret, forge an admin token |
+| C7 webhook SSRF | A6 | `eval` reads the JWT secret, forge an admin token |
+| C8 internal command injection | A5 + A8 | A8 leaks the key, A5 SSRF calls `/internal/run` |
+| C9 internal user dump (MD5) | A5 + A8 | same key, SSRF calls `/internal/users` |
+| C10 prototype pollution | A2 | UNION dumps the admin MD5 hash, crack it, log in |
+
+`npm run verify` walks each chain using only its parent. It also checks the C routes stay closed without a parent step.
 
 ## Rules for a fair score
 
