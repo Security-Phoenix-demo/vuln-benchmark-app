@@ -8,10 +8,12 @@ const jwt = require('./jwt');
 
 const app = express();
 app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
 app.use(express.raw({ type: 'application/octet-stream', limit: '1mb' }));
 app.use('/uploads', express.static(cfg.UPLOADS));
 
-app.get('/', (req, res) => res.json({ app: 'vuln-benchmark-app', endpoints: ENDPOINTS() }));
+app.use(require('./site'));
+app.get('/api', (req, res) => res.json({ app: 'vuln-benchmark-app', endpoints: ENDPOINTS() }));
 
 app.post('/api/login', (req, res) => {
   const { username = '', password = '' } = req.body || {};
